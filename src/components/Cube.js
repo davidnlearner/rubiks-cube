@@ -1,11 +1,55 @@
-import '../css/Cube.css'
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-import * as THREE from 'three';
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
+import "../css/Cube.css";
+import cubeData from "../data/cube_data.json";
+
+const colorMap = {
+    red: "#B90000",
+    blue: "#0045AD",
+    orange: "#FF5900",
+    yellow: "#FFD500",
+    white: "#FFFFFF",
+    green: "#009B48",
+    black: "#000000",
+};
+
+const addFaces = ({ cube, cubeGroup }) => {
+    const faces = ["left", "right", "top", "bottom", "front", "back"];
+
+    faces.forEach((face) => {
+        const geometry = new THREE.PlaneGeometry(0.95, 0.95);
+        const material = new THREE.MeshLambertMaterial({
+            color: colorMap[cube[`${face}_color`]],
+            side: THREE.DoubleSide,
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+
+        if (face === "front") {
+            mesh.position.z += 0.51;
+        } else if (face === "back") {
+            mesh.position.z -= 0.51;
+        } else if (face === "top") {
+            mesh.position.y += 0.51;
+            mesh.rotation.x = Math.PI / 2;
+        } else if (face === "bottom") {
+            mesh.position.y -= 0.51;
+            mesh.rotation.x = Math.PI / 2;
+        } else if (face === "left") {
+            mesh.position.x -= 0.51;
+            mesh.rotation.y = Math.PI / 2;
+        } else if (face === "right") {
+            mesh.position.x += 0.51;
+            mesh.rotation.y = Math.PI / 2;
+        }
+
+        cubeGroup.add(mesh);
+    });
+};
 
 function Cube() {
-
     //const [rotatingFace, setRotatingFace] = useState(null);
     const mount = useRef(null);
     const controls = useRef(null);
@@ -18,16 +62,16 @@ function Cube() {
         let frameId;
 
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            width / height,
+            0.1,
+            1000
+        );
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
 
         const geometry = new THREE.BoxGeometry(1, 1, 1);
-
-        console.log(geometry.faces)
-
-        const material = new THREE.MeshLambertMaterial({ color: 0x5555ff, vertexColors: THREE.FaceColors });
-
         const controls = new OrbitControls(camera, renderer.domElement);
 
         camera.position.x = 1;
@@ -45,7 +89,6 @@ function Cube() {
 
         scene.add(ambientLight, hemisphereLight, pointLight);
 
-
         //Array and group of all cubes in rubiks cube
         let cubes = [];
 
@@ -53,31 +96,32 @@ function Cube() {
         const group = new THREE.Group();
         const fullCube = new THREE.Group();
 
-        scene.add(fullCube, group)
+        scene.add(fullCube, group);
+
+        const material = new THREE.MeshLambertMaterial({ color: 0x000000 });
 
         //Creating cube objects
-        for (let row = -1.1; row <= 1.1; row += 1.1) {
-            for (let col = -1.1; col <= 1.1; col += 1.1) {
-                for (let aisle = -1.1; aisle <= 1.1; aisle += 1.1) {
-                    const cube = new THREE.Mesh(geometry, material);
+        cubeData.forEach((cube) => {
+            const cubeGroup = new THREE.Group();
+            const mesh = new THREE.Mesh(geometry, material);
 
-                    //cube.geometry.faces[4].color.setHex(0x00ffff);
+            cubeGroup.add(mesh);
 
-                    scene.add(cube);
-                    cube.position.x = col;
-                    cube.position.y = row;
-                    cube.position.z = aisle;
+            addFaces({ cube, cubeGroup });
 
-                    cubes.push(cube)
-                    fullCube.add(cube)
-                }
-            }
-        }
+            scene.add(cubeGroup);
 
+            cubeGroup.position.x = cube.col;
+            cubeGroup.position.y = cube.row;
+            cubeGroup.position.z = cube.aisle;
+
+            cubes.push(cubeGroup);
+            fullCube.add(cubeGroup);
+        });
 
         const renderScene = () => {
             renderer.render(scene, camera);
-        }
+        };
 
         const handleResize = () => {
             width = mount.current.clientWidth;
@@ -86,7 +130,7 @@ function Cube() {
             camera.aspect = width / height;
             camera.updateProjectionMatrix();
             renderScene();
-        }
+        };
 
         const animate = () => {
             frameId = window.requestAnimationFrame(animate);
@@ -99,58 +143,66 @@ function Cube() {
             renderer.render(scene, camera);
 
             renderScene();
-        }
+        };
 
         const rotate = (selectedFace) => {
             if (selectedFace.group.rotation[selectedFace.axis] < Math.PI / 2) {
                 selectedFace.group.rotation[selectedFace.axis] += 0.01;
             } else {
+                selectedFace.group.rotation[selectedFace.axis] = Math.PI / 2;
+
                 rotatingFace.current = null;
-                //group.remove(...group.children)
-                const groupChildren = [...group.children]
-                groupChildren.forEach(cube => {
-                    fullCube.add(cube)
+
+                const groupChildren = [...group.children];
+
+                groupChildren.forEach((cube) => {
+                    fullCube.attach(cube);
                 });
 
                 group.rotation[selectedFace.axis] = 0;
             }
+        };
 
-        }
-
-        mount.current.appendChild(renderer.domElement);  // adding renderer domElement
-        window.addEventListener('resize', handleResize);
+        mount.current.appendChild(renderer.domElement); // adding renderer domElement
+        window.addEventListener("resize", handleResize);
 
         //controls.current = { rotate };
 
         window.addEventListener("keydown", (e) => {
             if (e.key === "w") {
-                rotateEvent({ level: 1.1, posAxis: 'z', rotationalAxis: 'z' })
+                rotateEvent({ level: 1.1, posAxis: "z", rotationalAxis: "z" });
             } else if (e.key === "a") {
-                rotateEvent({ level: 1.1, posAxis: 'y', rotationalAxis: 'y' })
+                rotateEvent({ level: 1.1, posAxis: "y", rotationalAxis: "y" });
             } else if (e.key === "s") {
-                rotateEvent({ level: 1.1, posAxis: 'x', rotationalAxis: 'x' })
+                rotateEvent({ level: 1.1, posAxis: "x", rotationalAxis: "x" });
             } else if (e.key === "d") {
-                rotateEvent({ level: -1.1, posAxis: 'z', rotationalAxis: 'z' })
+                rotateEvent({ level: -1.1, posAxis: "z", rotationalAxis: "z" });
             }
-        })
+        });
 
         const rotateEvent = (directions) => {
             if (rotatingFace.current === null) {
-                cubes.forEach(cube => {
-                    if (cube.position[directions.posAxis] === directions.level) {
-                        group.add(cube)
+                cubes.forEach((cube) => {
+                    if (
+                        Math.abs(
+                            cube.getWorldPosition()[directions.posAxis] -
+                                directions.level
+                        ) < 0.1
+                    ) {
+                        group.add(cube);
                     }
                 });
-                rotatingFace.current = { group: group, axis: directions.rotationalAxis };
+                rotatingFace.current = {
+                    group: group,
+                    axis: directions.rotationalAxis,
+                };
             }
-        }
+        };
 
         animate();
-    }, [])
+    }, []);
 
-    return (
-        <div className="canvasWrapper" ref={mount} />
-    );
+    return <div className="canvasWrapper" ref={mount} />;
 }
 
 export default Cube;
