@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
@@ -52,6 +52,7 @@ const addFaces = ({ cube, cubeGroup }) => {
 function Cube() {
     //const [rotatingFace, setRotatingFace] = useState(null);
     const mount = useRef(null);
+    // eslint-disable-next-line no-unused-vars
     const controls = useRef(null);
 
     const rotatingFace = useRef(null);
@@ -59,6 +60,7 @@ function Cube() {
     useEffect(() => {
         let width = mount.current.clientWidth;
         let height = mount.current.clientHeight;
+        // eslint-disable-next-line no-unused-vars
         let frameId;
 
         const scene = new THREE.Scene();
