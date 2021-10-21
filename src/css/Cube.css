@@ -1,4 +1,9 @@
 .canvasWrapper {
     height: 100vh;
     width: 100vw;
-  }
+}
+
+.info-box {
+    background-color: white;
+    height: 3rem;
+}

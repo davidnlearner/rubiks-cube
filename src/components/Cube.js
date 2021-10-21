@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
@@ -50,12 +50,13 @@ const addFaces = ({ cube, cubeGroup }) => {
 };
 
 function Cube() {
-    //const [rotatingFace, setRotatingFace] = useState(null);
     const mount = useRef(null);
     // eslint-disable-next-line no-unused-vars
     const controls = useRef(null);
 
     const rotatingFace = useRef(null);
+
+    const [cubes, setCubes] = useState([]);
 
     useEffect(() => {
         let width = mount.current.clientWidth;
@@ -75,9 +76,11 @@ function Cube() {
 
         const geometry = new THREE.BoxGeometry(1, 1, 1);
         const controls = new OrbitControls(camera, renderer.domElement);
+        controls.maxDistance = 20;
+        controls.minDistance = 5;
 
-        camera.position.x = 1;
-        camera.position.y = 1;
+        camera.position.x = 5;
+        camera.position.y = 4;
         camera.position.z = 8;
 
         controls.update();
@@ -92,7 +95,7 @@ function Cube() {
         scene.add(ambientLight, hemisphereLight, pointLight);
 
         //Array and group of all cubes in rubiks cube
-        let cubes = [];
+        let cubeList = [];
 
         //Group variable instances
         const group = new THREE.Group();
@@ -117,9 +120,11 @@ function Cube() {
             cubeGroup.position.y = cube.row;
             cubeGroup.position.z = cube.aisle;
 
-            cubes.push(cubeGroup);
+            cubeList.push(cubeGroup);
             fullCube.add(cubeGroup);
         });
+
+        setCubes(cubeList);
 
         const renderScene = () => {
             renderer.render(scene, camera);
@@ -148,10 +153,22 @@ function Cube() {
         };
 
         const rotate = (selectedFace) => {
-            if (selectedFace.group.rotation[selectedFace.axis] < Math.PI / 2) {
-                selectedFace.group.rotation[selectedFace.axis] += 0.01;
+            const sign = selectedFace.clockwise ? 1 : -1;
+            const threshold = (sign * Math.PI) / 2;
+            const rotationSpeed = 0.02 * sign;
+
+            if (
+                selectedFace.group.rotation[selectedFace.axis] < threshold &&
+                sign > 0
+            ) {
+                selectedFace.group.rotation[selectedFace.axis] += rotationSpeed;
+            } else if (
+                selectedFace.group.rotation[selectedFace.axis] > threshold &&
+                sign < 0
+            ) {
+                selectedFace.group.rotation[selectedFace.axis] += rotationSpeed;
             } else {
-                selectedFace.group.rotation[selectedFace.axis] = Math.PI / 2;
+                selectedFace.group.rotation[selectedFace.axis] = threshold;
 
                 rotatingFace.current = null;
 
@@ -162,6 +179,16 @@ function Cube() {
                 });
 
                 group.rotation[selectedFace.axis] = 0;
+                // console.log(
+                //     fullCube.children.map((cube) => ({
+                //         id: cube.id,
+                //         position: cube.getWorldPosition(),
+                //         direction: cube.getWorldDirection(),
+                //         rotation: cube.getWorldQuaternion(),
+                //     }))
+                // );
+                //console.log(fullCube.children);
+                setCubes(fullCube.children);
             }
         };
 
@@ -171,20 +198,58 @@ function Cube() {
         //controls.current = { rotate };
 
         window.addEventListener("keydown", (e) => {
-            if (e.key === "w") {
-                rotateEvent({ level: 1.1, posAxis: "z", rotationalAxis: "z" });
-            } else if (e.key === "a") {
-                rotateEvent({ level: 1.1, posAxis: "y", rotationalAxis: "y" });
-            } else if (e.key === "s") {
-                rotateEvent({ level: 1.1, posAxis: "x", rotationalAxis: "x" });
-            } else if (e.key === "d") {
-                rotateEvent({ level: -1.1, posAxis: "z", rotationalAxis: "z" });
+            let clockwise = /[A-Z]/.test(e.key);
+            const key = e.key.toLowerCase();
+            if (key === "f") {
+                //front counter-clockwise
+                rotateEvent({
+                    level: 1.1,
+                    posAxis: "z",
+                    rotationalAxis: "z",
+                    clockwise,
+                });
+            } else if (key === "u") {
+                // top counter-clockwise
+                rotateEvent({
+                    level: 1.1,
+                    posAxis: "y",
+                    rotationalAxis: "y",
+                    clockwise,
+                });
+            } else if (key === "r") {
+                //right counter-clockwise
+                rotateEvent({
+                    level: 1.1,
+                    posAxis: "x",
+                    rotationalAxis: "x",
+                    clockwise,
+                });
+            } else if (key === "b") {
+                // bottom clockwise
+                clockwise = !clockwise;
+                rotateEvent({
+                    level: -1.1,
+                    posAxis: "y",
+                    rotationalAxis: "y",
+                    clockwise,
+                });
+            } else if (key === "l") {
+                //left clockwise
+                clockwise = !clockwise;
+                rotateEvent({
+                    level: -1.1,
+                    posAxis: "x",
+                    rotationalAxis: "x",
+                    clockwise,
+                });
+            } else if (key === "s") {
+                solveCube();
             }
         });
 
         const rotateEvent = (directions) => {
             if (rotatingFace.current === null) {
-                cubes.forEach((cube) => {
+                cubeList.forEach((cube) => {
                     if (
                         Math.abs(
                             cube.getWorldPosition()[directions.posAxis] -
@@ -197,12 +262,60 @@ function Cube() {
                 rotatingFace.current = {
                     group: group,
                     axis: directions.rotationalAxis,
+                    clockwise: directions.clockwise,
                 };
             }
         };
 
+        const solveCube = () => {
+            // let currentState = "";
+            // for (let i = 0; i < 54; i++) {
+            //     currentState += "z";
+            // }
+            console.log(cubes);
+
+            const faces = cubes
+                .map((cube) => cube.children.slice(1))
+                .flat() // converts from array of face arrays to a flattened array of faces
+                .filter(
+                    (face) =>
+                        face.material.color.r +
+                            face.material.color.b +
+                            face.material.color.g >
+                        0
+                ); // face color is not black) // filters any face that is black
+
+            for (let i = -1.1; i <= 1.1; i += 1.1) {
+                for (let j = -1.1; j <= 1.1; j += 1.1) {}
+            }
+            const up = faces.map((face) => {
+                if (Math.abs(face.getWorldPosition()["z"] + 1.1) < 0.1) {
+                    return face;
+                }
+            });
+            console.log(faces);
+            let down = [];
+            let front = [];
+            let back = [];
+            let left = [];
+            let right = [];
+            // Method:
+            // go through each cube
+            // use Math.abs(cube.getWorldPosition()[posAxis] - level) < 0.1
+            // posAxis will be x, y, or z
+            // level will be -1.1, 0, or 1.1
+            // determine orientation
+            // placement in the array reveals initial orientation and colors
+            // then check rotation property and figure out final orientation
+            // replace corresponding letters in currentState
+        };
+
         animate();
     }, []);
+
+    useEffect(() => {
+        console.log("here", cubes);
+    }, [cubes]);
 
     return <div className="canvasWrapper" ref={mount} />;
 }
