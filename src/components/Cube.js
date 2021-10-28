@@ -6,13 +6,13 @@ import "../css/Cube.css";
 import cubeData from "../data/cube_data.json";
 
 const colorMap = {
-    red: "#B90000",
-    blue: "#0045AD",
-    orange: "#FF5900",
-    yellow: "#FFD500",
-    white: "#FFFFFF",
-    green: "#009B48",
-    black: "#000000",
+    red: "rgb(185, 0, 0)",
+    blue: "rgb(0, 69, 173)",
+    orange: "rgb(255, 89, 0)",
+    yellow: "rgb(255, 213, 0)",
+    white: "rgb(255,255,255)",
+    green: "rgb(0, 155, 72)",
+    black: "rgb(0,0,0)",
 };
 
 const addFaces = ({ cube, cubeGroup }) => {
@@ -250,10 +250,11 @@ function Cube() {
         const rotateEvent = (directions) => {
             if (rotatingFace.current === null) {
                 cubeList.forEach((cube) => {
+                    let target = new THREE.Vector3(0, 0, 0);
+                    cube.getWorldPosition(target);
                     if (
                         Math.abs(
-                            cube.getWorldPosition()[directions.posAxis] -
-                                directions.level
+                            target[directions.posAxis] - directions.level
                         ) < 0.1
                     ) {
                         group.add(cube);
@@ -272,7 +273,8 @@ function Cube() {
             // for (let i = 0; i < 54; i++) {
             //     currentState += "z";
             // }
-            console.log(cubes);
+            const currentCubes = cubes;
+            console.log(currentCubes);
 
             const faces = cubes
                 .map((cube) => cube.children.slice(1))
@@ -285,29 +287,92 @@ function Cube() {
                         0
                 ); // face color is not black) // filters any face that is black
 
-            for (let i = -1.1; i <= 1.1; i += 1.1) {
-                for (let j = -1.1; j <= 1.1; j += 1.1) {}
-            }
-            const up = faces.map((face) => {
-                if (Math.abs(face.getWorldPosition()["z"] + 1.1) < 0.1) {
-                    return face;
+            const right = groupFaces(faces, "x", true);
+            const left = groupFaces(faces, "x", false);
+            const up = groupFaces(faces, "y", true);
+            const down = groupFaces(faces, "y", false);
+            const front = groupFaces(faces, "z", true);
+            const back = groupFaces(faces, "z", false);
+
+            let cubeState = []; // array of strings
+            cubeState.append(faceToSortedString(front));
+            cubeState.append(faceToSortedString(right));
+            cubeState.append(faceToSortedString(up));
+            cubeState.append(faceToSortedString(down));
+            cubeState.append(faceToSortedString(left));
+            cubeState.append(faceToSortedString(back));
+        };
+
+        const groupFaces = (tiles, axis, positive) => {
+            const offset = positive ? 1.1 : -1.1;
+
+            const array = tiles.map((tile) => {
+                let cords = new THREE.Vector3(0, 0, 0);
+                tile.getWorldPosition(cords);
+                if (Math.abs(cords[axis] + offset) < 0.1) {
+                    return tile;
                 }
             });
-            console.log(faces);
-            let down = [];
-            let front = [];
-            let back = [];
-            let left = [];
-            let right = [];
-            // Method:
-            // go through each cube
-            // use Math.abs(cube.getWorldPosition()[posAxis] - level) < 0.1
-            // posAxis will be x, y, or z
-            // level will be -1.1, 0, or 1.1
-            // determine orientation
-            // placement in the array reveals initial orientation and colors
-            // then check rotation property and figure out final orientation
-            // replace corresponding letters in currentState
+
+            return array;
+        };
+
+        const faceToSortedString = (
+            face,
+            rowAxis,
+            rowStart,
+            colAxis,
+            colStart
+        ) => {
+            // example case: front, so axis: "z", positive: false (negative)
+            let sortedString = "";
+
+            for (let row = rowStart; row <= -rowStart; row -= rowStart) {
+                for (let col = colStart; col <= -colStart; col -= colStart) {
+                    sortedString += face.filter((tile) => {
+                        let cords = new THREE.Vector3(0, 0, 0);
+                        tile.getWorldPosition(cords);
+                        if (
+                            Math.abs(cords[rowAxis] - row) < 0.1 &&
+                            Math.abs(cords[colAxis] - col) < 0.1
+                        ) {
+                            return getColorValue(tile.material.color);
+                        }
+                    });
+                }
+            }
+
+            return sortedString;
+        };
+
+        const getColorValue = (tileColor) => {
+            // Currently testing for what values ranges each color shows
+            // in order to check this or make it cleaner (like maybe using a switch statement)
+            if (tileColor.r === 1) {
+                if (tileColor.g > 0.5) {
+                    if (tileColor.b === 1) {
+                        console.log("white: " + tileColor);
+                        return "w";
+                    } else {
+                        console.log("yellow: " + tileColor);
+                        return "y";
+                    }
+                } else {
+                    console.log("orange: " + tileColor);
+                    return "o";
+                }
+            } else if (tileColor.r === 0) {
+                if (tileColor.b > 0.5) {
+                    console.log("blue: " + tileColor);
+                    return "b";
+                } else {
+                    console.log("green: " + tileColor);
+                    return "g";
+                }
+            } else {
+                console.log("red: " + tileColor);
+                return "r";
+            }
         };
 
         animate();
