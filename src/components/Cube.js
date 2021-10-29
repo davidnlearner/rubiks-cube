@@ -200,6 +200,12 @@ function Cube() {
         window.addEventListener("keydown", (e) => {
             let clockwise = /[A-Z]/.test(e.key);
             const key = e.key.toLowerCase();
+
+            //processRotateEvent(key);
+
+            //commands.forEach(key => processRotateEvent(key))
+
+            //const processRotateEvent = (key) => {}
             if (key === "f") {
                 //front counter-clockwise
                 rotateEvent({
@@ -242,8 +248,6 @@ function Cube() {
                     rotationalAxis: "x",
                     clockwise,
                 });
-            } else if (key === "s") {
-                solveCube();
             }
         });
 
@@ -268,118 +272,140 @@ function Cube() {
             }
         };
 
-        const solveCube = () => {
-            // let currentState = "";
-            // for (let i = 0; i < 54; i++) {
-            //     currentState += "z";
-            // }
-            const currentCubes = cubes;
-            console.log(currentCubes);
-
-            const faces = cubes
-                .map((cube) => cube.children.slice(1))
-                .flat() // converts from array of face arrays to a flattened array of faces
-                .filter(
-                    (face) =>
-                        face.material.color.r +
-                            face.material.color.b +
-                            face.material.color.g >
-                        0
-                ); // face color is not black) // filters any face that is black
-
-            const right = groupFaces(faces, "x", true);
-            const left = groupFaces(faces, "x", false);
-            const up = groupFaces(faces, "y", true);
-            const down = groupFaces(faces, "y", false);
-            const front = groupFaces(faces, "z", true);
-            const back = groupFaces(faces, "z", false);
-
-            let cubeState = []; // array of strings
-            cubeState.append(faceToSortedString(front));
-            cubeState.append(faceToSortedString(right));
-            cubeState.append(faceToSortedString(up));
-            cubeState.append(faceToSortedString(down));
-            cubeState.append(faceToSortedString(left));
-            cubeState.append(faceToSortedString(back));
-        };
-
-        const groupFaces = (tiles, axis, positive) => {
-            const offset = positive ? 1.1 : -1.1;
-
-            const array = tiles.map((tile) => {
-                let cords = new THREE.Vector3(0, 0, 0);
-                tile.getWorldPosition(cords);
-                if (Math.abs(cords[axis] + offset) < 0.1) {
-                    return tile;
-                }
-            });
-
-            return array;
-        };
-
-        const faceToSortedString = (
-            face,
-            rowAxis,
-            rowStart,
-            colAxis,
-            colStart
-        ) => {
-            // example case: front, so axis: "z", positive: false (negative)
-            let sortedString = "";
-
-            for (let row = rowStart; row <= -rowStart; row -= rowStart) {
-                for (let col = colStart; col <= -colStart; col -= colStart) {
-                    sortedString += face.filter((tile) => {
-                        let cords = new THREE.Vector3(0, 0, 0);
-                        tile.getWorldPosition(cords);
-                        if (
-                            Math.abs(cords[rowAxis] - row) < 0.1 &&
-                            Math.abs(cords[colAxis] - col) < 0.1
-                        ) {
-                            return getColorValue(tile.material.color);
-                        }
-                    });
-                }
-            }
-
-            return sortedString;
-        };
-
-        const getColorValue = (tileColor) => {
-            // Currently testing for what values ranges each color shows
-            // in order to check this or make it cleaner (like maybe using a switch statement)
-            if (tileColor.r === 1) {
-                if (tileColor.g > 0.5) {
-                    if (tileColor.b === 1) {
-                        console.log("white: " + tileColor);
-                        return "w";
-                    } else {
-                        console.log("yellow: " + tileColor);
-                        return "y";
-                    }
-                } else {
-                    console.log("orange: " + tileColor);
-                    return "o";
-                }
-            } else if (tileColor.r === 0) {
-                if (tileColor.b > 0.5) {
-                    console.log("blue: " + tileColor);
-                    return "b";
-                } else {
-                    console.log("green: " + tileColor);
-                    return "g";
-                }
-            } else {
-                console.log("red: " + tileColor);
-                return "r";
-            }
-        };
-
         animate();
     }, []);
 
+    const solveCube = (cubes) => {
+        const currentCubes = cubes;
+        console.log(currentCubes);
+
+        const faces = cubes
+            .map((cube) => cube.children.slice(1))
+            .flat() // converts from array of face arrays to a flattened array of faces
+            .filter(
+                (face) =>
+                    face.material.color.r +
+                        face.material.color.b +
+                        face.material.color.g >
+                    0
+            ); // face color is not black) // filters any face that is black
+
+        // group faces is giving me 12 meshes per face somehow
+        const front = groupFaces(faces, "z", false);
+        const right = groupFaces(faces, "x", false);
+        const up = groupFaces(faces, "y", false);
+        const down = groupFaces(faces, "y", true);
+        const left = groupFaces(faces, "x", true);
+        const back = groupFaces(faces, "z", true);
+
+        let cubeState = [
+            faceToSortedString(front, "x", -1.1, "y", 1.1),
+            faceToSortedString(right, "z", 1.1, "y", 1.1),
+            faceToSortedString(up, "x", -1.1, "z", -1.1),
+            faceToSortedString(down, "x", 1.1, "z", 1.1),
+            faceToSortedString(left, "z", -1.1, "y", 1.1),
+            faceToSortedString(back, "x", 1.1, "y", 1.1),
+        ];
+
+        console.log(cubeState);
+    };
+
+    const groupFaces = (tiles, axis, positive) => {
+        const offset = positive ? 1.61 : -1.61;
+
+        const array = tiles.filter((tile) => {
+            let cords = new THREE.Vector3(0, 0, 0);
+            tile.getWorldPosition(cords);
+            if (Math.abs(cords[axis] + offset) < 0.1) {
+                return tile;
+            }
+        });
+
+        return array;
+    };
+
+    const faceToSortedString = (face, rowAxis, rowStart, colAxis, colStart) => {
+        // example case: front, (front, x, -1.1, y, 1.1)
+        let sortedString = "";
+        let tileArray = [];
+        let rowPos = rowStart;
+        let colPos = colStart;
+
+        for (let col = 0; col < 3; col++) {
+            for (let row = 0; row < 3; row++) {
+                const tile = face.find((tile) =>
+                    tileFilter(
+                        tile,
+                        rowAxis,
+                        colAxis,
+                        rowStart - rowStart * row,
+                        colStart - colStart * col
+                    )
+                );
+
+                sortedString += getColorValue(tile.material.color);
+            }
+        }
+
+        return sortedString;
+    };
+
+    const tileFilter = (tile, rowAxis, colAxis, rowPos, colPos) => {
+        let cords = new THREE.Vector3(0, 0, 0);
+        tile.getWorldPosition(cords);
+        if (Math.abs(cords[rowAxis] - rowPos) < 0.1) {
+            if (Math.abs(cords[colAxis] - colPos) < 0.1) {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    };
+
+    const getColorValue = (tileColor) => {
+        // Currently testing for what values ranges each color shows
+        // in order to check this or make it cleaner (like maybe using a switch statement)
+        const colorValueMap = {
+            white: { r: 1, g: 1, b: 1 },
+            blue: { r: 0, g: 0.27058823529411763, b: 0.6784313725490196 },
+            orange: { r: 1, g: 0.34901960784313724, b: 0 },
+            red: { r: 0.7254901960784313, g: 0, b: 0 },
+            green: { r: 0, g: 0.6078431372549019, b: 0.2823529411764706 },
+            yellow: { r: 1, g: 0.8352941176470589, b: 0 },
+        };
+
+        if (tileColor.r === 1) {
+            if (tileColor.g > 0.5) {
+                if (tileColor.b === 1) {
+                    return "w";
+                } else {
+                    return "y";
+                }
+            } else {
+                return "o";
+            }
+        } else if (tileColor.r === 0) {
+            if (tileColor.b > 0.5) {
+                return "b";
+            } else {
+                return "g";
+            }
+        } else {
+            return "r";
+        }
+    };
+
     useEffect(() => {
-        console.log("here", cubes);
+        const eventListener = (e) => {
+            if (e.key.toLowerCase() === "s") {
+                solveCube(cubes);
+            }
+        };
+        window.addEventListener("keydown", eventListener);
+
+        return () => {
+            window.removeEventListener("keydown", eventListener);
+        };
     }, [cubes]);
 
     return <div className="canvasWrapper" ref={mount} />;
