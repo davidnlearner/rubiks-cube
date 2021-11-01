@@ -9,6 +9,7 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-scripts": "4.0.3",
+    "rubiks-cube-solver": "^1.2.0",
     "three": "^0.129.0",
     "three-orbitcontrols": "^2.110.3",
     "web-vitals": "^1.1.2"

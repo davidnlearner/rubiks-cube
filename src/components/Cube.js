@@ -5,6 +5,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import "../css/Cube.css";
 import cubeData from "../data/cube_data.json";
 
+import solver from "rubiks-cube-solver";
+
 const colorMap = {
     red: "rgb(185, 0, 0)",
     blue: "rgb(0, 69, 173)",
@@ -198,14 +200,13 @@ function Cube() {
         //controls.current = { rotate };
 
         window.addEventListener("keydown", (e) => {
-            let clockwise = /[A-Z]/.test(e.key);
-            const key = e.key.toLowerCase();
+            processRotateEvent(e.key);
+        });
 
-            //processRotateEvent(key);
+        const processRotateEvent = (key) => {
+            let clockwise = /[A-Z]/.test(key);
+            key = key.toLowerCase();
 
-            //commands.forEach(key => processRotateEvent(key))
-
-            //const processRotateEvent = (key) => {}
             if (key === "f") {
                 //front counter-clockwise
                 rotateEvent({
@@ -249,7 +250,7 @@ function Cube() {
                     clockwise,
                 });
             }
-        });
+        };
 
         const rotateEvent = (directions) => {
             if (rotatingFace.current === null) {
@@ -302,12 +303,29 @@ function Cube() {
             faceToSortedString(front, "x", -1.1, "y", 1.1),
             faceToSortedString(right, "z", 1.1, "y", 1.1),
             faceToSortedString(up, "x", -1.1, "z", -1.1),
-            faceToSortedString(down, "x", 1.1, "z", 1.1),
+            faceToSortedString(down, "x", -1.1, "z", 1.1),
             faceToSortedString(left, "z", -1.1, "y", 1.1),
             faceToSortedString(back, "x", 1.1, "y", 1.1),
-        ];
+        ].join("");
 
-        console.log(cubeState);
+        //console.log(cubeState);
+
+        let solveMoves = solver(cubeState);
+        console.log(solveMoves);
+        let moveArray = solveMoves.split(" ");
+        moveArray = moveArray.map((move) => {
+            if (move.includes("prime")) {
+                return move[0].toUpperCase();
+            } else if (move.includes("2")) {
+                return `${move[0].toLowerCase()} ${move[0].toLowerCase()}`;
+            } else {
+                return move.toLowerCase();
+            }
+        });
+
+        solveMoves = moveArray.join(" ");
+        moveArray = solveMoves.split(" ");
+        moveArray.forEach((key) => processRotateEvent(key));
     };
 
     const groupFaces = (tiles, axis, positive) => {
@@ -377,21 +395,21 @@ function Cube() {
         if (tileColor.r === 1) {
             if (tileColor.g > 0.5) {
                 if (tileColor.b === 1) {
-                    return "w";
+                    return "f"; // white
                 } else {
-                    return "y";
+                    return "b"; // yellow
                 }
             } else {
-                return "o";
+                return "u"; // orange
             }
         } else if (tileColor.r === 0) {
             if (tileColor.b > 0.5) {
-                return "b";
+                return "r"; // blue
             } else {
-                return "g";
+                return "l"; // green
             }
         } else {
-            return "r";
+            return "d"; // red
         }
     };
 
