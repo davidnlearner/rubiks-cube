@@ -5,14 +5,16 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import "../css/Cube.css";
 import cubeData from "../data/cube_data.json";
 
+import solver from "rubiks-cube-solver";
+
 const colorMap = {
-    red: "#B90000",
-    blue: "#0045AD",
-    orange: "#FF5900",
-    yellow: "#FFD500",
-    white: "#FFFFFF",
-    green: "#009B48",
-    black: "#000000",
+    red: "rgb(185, 0, 0)",
+    blue: "rgb(0, 69, 173)",
+    orange: "rgb(255, 89, 0)",
+    yellow: "rgb(255, 213, 0)",
+    white: "rgb(255,255,255)",
+    green: "rgb(0, 155, 72)",
+    black: "rgb(0,0,0)",
 };
 
 const addFaces = ({ cube, cubeGroup }) => {
@@ -54,9 +56,12 @@ function Cube() {
     // eslint-disable-next-line no-unused-vars
     const controls = useRef(null);
 
-    const rotatingFace = useRef(null);
+    const rotating = useRef(false);
 
     const [cubes, setCubes] = useState([]);
+    const [fullCubeGroup, setFullCubeGroup] = useState(null);
+    const [fullScene, setFullScene] = useState(null);
+    // const [group, setGroup] = useState([]);
 
     useEffect(() => {
         let width = mount.current.clientWidth;
@@ -85,7 +90,7 @@ function Cube() {
 
         controls.update();
 
-        //Light
+        // Light
         const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
         const hemisphereLight = new THREE.HemisphereLight(0x404040); // soft white light
         hemisphereLight.position.y = -10;
@@ -94,18 +99,17 @@ function Cube() {
 
         scene.add(ambientLight, hemisphereLight, pointLight);
 
-        //Array and group of all cubes in rubiks cube
+        // Array and group of all cubes in rubiks cube
         let cubeList = [];
 
-        //Group variable instances
-        const group = new THREE.Group();
+        // Group variable instances
         const fullCube = new THREE.Group();
 
-        scene.add(fullCube, group);
+        scene.add(fullCube);
 
         const material = new THREE.MeshLambertMaterial({ color: 0x000000 });
 
-        //Creating cube objects
+        // Creating cube objects
         cubeData.forEach((cube) => {
             const cubeGroup = new THREE.Group();
             const mesh = new THREE.Mesh(geometry, material);
@@ -125,6 +129,8 @@ function Cube() {
         });
 
         setCubes(cubeList);
+        setFullCubeGroup(fullCube);
+        setFullScene(scene);
 
         const renderScene = () => {
             renderer.render(scene, camera);
@@ -139,12 +145,19 @@ function Cube() {
             renderScene();
         };
 
+        // contains event call, needs fullCube
+
+        mount.current.appendChild(renderer.domElement); // adding renderer domElement
+        window.addEventListener("resize", handleResize);
+
+        // controls.current = { rotate };
+
         const animate = () => {
             frameId = window.requestAnimationFrame(animate);
 
-            if (rotatingFace.current) {
-                rotate(rotatingFace.current);
-            }
+            // if (rotatingFace.current) {
+            //     rotate(rotatingFace.current, rotateGroup);
+            // }
 
             controls.update();
             renderer.render(scene, camera);
@@ -152,170 +165,338 @@ function Cube() {
             renderScene();
         };
 
-        const rotate = (selectedFace) => {
-            const sign = selectedFace.clockwise ? 1 : -1;
-            const threshold = (sign * Math.PI) / 2;
-            const rotationSpeed = 0.02 * sign;
-
-            if (
-                selectedFace.group.rotation[selectedFace.axis] < threshold &&
-                sign > 0
-            ) {
-                selectedFace.group.rotation[selectedFace.axis] += rotationSpeed;
-            } else if (
-                selectedFace.group.rotation[selectedFace.axis] > threshold &&
-                sign < 0
-            ) {
-                selectedFace.group.rotation[selectedFace.axis] += rotationSpeed;
-            } else {
-                selectedFace.group.rotation[selectedFace.axis] = threshold;
-
-                rotatingFace.current = null;
-
-                const groupChildren = [...group.children];
-
-                groupChildren.forEach((cube) => {
-                    fullCube.attach(cube);
-                });
-
-                group.rotation[selectedFace.axis] = 0;
-                // console.log(
-                //     fullCube.children.map((cube) => ({
-                //         id: cube.id,
-                //         position: cube.getWorldPosition(),
-                //         direction: cube.getWorldDirection(),
-                //         rotation: cube.getWorldQuaternion(),
-                //     }))
-                // );
-                //console.log(fullCube.children);
-                setCubes(fullCube.children);
-            }
-        };
-
-        mount.current.appendChild(renderer.domElement); // adding renderer domElement
-        window.addEventListener("resize", handleResize);
-
-        //controls.current = { rotate };
-
-        window.addEventListener("keydown", (e) => {
-            let clockwise = /[A-Z]/.test(e.key);
-            const key = e.key.toLowerCase();
-            if (key === "f") {
-                //front counter-clockwise
-                rotateEvent({
-                    level: 1.1,
-                    posAxis: "z",
-                    rotationalAxis: "z",
-                    clockwise,
-                });
-            } else if (key === "u") {
-                // top counter-clockwise
-                rotateEvent({
-                    level: 1.1,
-                    posAxis: "y",
-                    rotationalAxis: "y",
-                    clockwise,
-                });
-            } else if (key === "r") {
-                //right counter-clockwise
-                rotateEvent({
-                    level: 1.1,
-                    posAxis: "x",
-                    rotationalAxis: "x",
-                    clockwise,
-                });
-            } else if (key === "b") {
-                // bottom clockwise
-                clockwise = !clockwise;
-                rotateEvent({
-                    level: -1.1,
-                    posAxis: "y",
-                    rotationalAxis: "y",
-                    clockwise,
-                });
-            } else if (key === "l") {
-                //left clockwise
-                clockwise = !clockwise;
-                rotateEvent({
-                    level: -1.1,
-                    posAxis: "x",
-                    rotationalAxis: "x",
-                    clockwise,
-                });
-            } else if (key === "s") {
-                solveCube();
-            }
-        });
-
-        const rotateEvent = (directions) => {
-            if (rotatingFace.current === null) {
-                cubeList.forEach((cube) => {
-                    if (
-                        Math.abs(
-                            cube.getWorldPosition()[directions.posAxis] -
-                                directions.level
-                        ) < 0.1
-                    ) {
-                        group.add(cube);
-                    }
-                });
-                rotatingFace.current = {
-                    group: group,
-                    axis: directions.rotationalAxis,
-                    clockwise: directions.clockwise,
-                };
-            }
-        };
-
-        const solveCube = () => {
-            // let currentState = "";
-            // for (let i = 0; i < 54; i++) {
-            //     currentState += "z";
-            // }
-            console.log(cubes);
-
-            const faces = cubes
-                .map((cube) => cube.children.slice(1))
-                .flat() // converts from array of face arrays to a flattened array of faces
-                .filter(
-                    (face) =>
-                        face.material.color.r +
-                            face.material.color.b +
-                            face.material.color.g >
-                        0
-                ); // face color is not black) // filters any face that is black
-
-            for (let i = -1.1; i <= 1.1; i += 1.1) {
-                for (let j = -1.1; j <= 1.1; j += 1.1) {}
-            }
-            const up = faces.map((face) => {
-                if (Math.abs(face.getWorldPosition()["z"] + 1.1) < 0.1) {
-                    return face;
-                }
-            });
-            console.log(faces);
-            let down = [];
-            let front = [];
-            let back = [];
-            let left = [];
-            let right = [];
-            // Method:
-            // go through each cube
-            // use Math.abs(cube.getWorldPosition()[posAxis] - level) < 0.1
-            // posAxis will be x, y, or z
-            // level will be -1.1, 0, or 1.1
-            // determine orientation
-            // placement in the array reveals initial orientation and colors
-            // then check rotation property and figure out final orientation
-            // replace corresponding letters in currentState
-        };
-
         animate();
     }, []);
 
     useEffect(() => {
-        console.log("here", cubes);
-    }, [cubes]);
+        const solveEventListener = (e) => {
+            if (e.key.toLowerCase() === "s") {
+                solveCube(cubes);
+            }
+        };
+
+        const rotateEventListener = (e) => {
+            console.log(rotating.current);
+            if (rotating.current === false) {
+                processRotateEvent(e.key, cubes, fullCubeGroup);
+            }
+        };
+
+        window.addEventListener("keydown", solveEventListener);
+        window.addEventListener("keydown", rotateEventListener);
+
+        return () => {
+            window.removeEventListener("keydown", solveEventListener);
+            window.removeEventListener("keydown", rotateEventListener);
+        };
+    }, [cubes, fullCubeGroup]);
+
+    const rotate = (clockwise, rotateGroup, axis) => {
+        const sign = clockwise ? 1 : -1;
+        const rotationSpeed = 0.02 * sign;
+
+        rotateGroup.rotation[axis] += rotationSpeed;
+    };
+
+    const rotateEvent = (directions, cubes, fullCubeGroup) => {
+        rotating.current = true;
+
+        const rotateGroup = new THREE.Group();
+        fullScene.add(rotateGroup);
+
+        cubes.forEach((cube) => {
+            let target = new THREE.Vector3(0, 0, 0);
+            cube.getWorldPosition(target);
+            if (
+                Math.abs(
+                    target[directions.posAxis] - directions.level
+                ) < 0.1
+            ) {
+                rotateGroup.add(cube);
+            }
+        });
+
+        const clockwise = directions.clockwise;
+        const sign = clockwise ? 1 : -1;
+        const threshold = (sign * Math.PI) / 2;
+        const axis = directions.rotationalAxis;
+
+        const interval = setInterval(() => {
+            if (
+                (rotateGroup.rotation[axis] < threshold && sign > 0)
+                ||
+                (rotateGroup.rotation[axis] > threshold && sign < 0)
+            ) {
+                rotate(clockwise, rotateGroup, axis);
+            }
+            else {
+                rotating.current = false;
+
+                rotateGroup.rotation[axis] = threshold;
+                const groupChildren = [...rotateGroup.children];
+                
+                groupChildren.forEach((cube) => {
+                    fullCubeGroup.attach(cube);
+                });
+        
+                rotateGroup.rotation[axis] = 0;
+                fullScene.remove(rotateGroup);
+
+                clearInterval(interval);
+            }
+        }, 20);
+    };
+
+    const processRotateEvent = (key, cubes, fullCubeGroup) => {
+        let clockwise = /[A-Z]/.test(key);
+        key = key.toLowerCase();
+
+        if (key === "f") {
+            // front counter-clockwise
+            rotateEvent(
+                {
+                    level: 1.1,
+                    posAxis: "z",
+                    rotationalAxis: "z",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup
+            );
+        } else if (key === "u") {
+            // top counter-clockwise
+            rotateEvent(
+                {
+                    level: 1.1,
+                    posAxis: "y",
+                    rotationalAxis: "y",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup
+            );
+        } else if (key === "r") {
+            //right counter-clockwise
+            rotateEvent(
+                {
+                    level: 1.1,
+                    posAxis: "x",
+                    rotationalAxis: "x",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup
+            );
+        } else if (key === "d") {
+            // down clockwise
+            clockwise = !clockwise;
+            rotateEvent(
+                {
+                    level: -1.1,
+                    posAxis: "y",
+                    rotationalAxis: "y",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup
+            );
+        } else if (key === "l") {
+            // left clockwise
+            clockwise = !clockwise;
+            rotateEvent(
+                {
+                    level: -1.1,
+                    posAxis: "x",
+                    rotationalAxis: "x",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup
+            );
+        } else if (key === "b") {
+            // back clockwise
+            clockwise = !clockwise;
+            rotateEvent(
+                {
+                    level: -1.1,
+                    posAxis: "z",
+                    rotationalAxis: "z",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup
+            );
+        }
+
+    };
+
+    const solveCube = (cubes) => {
+        const currentCubes = cubes;
+        console.log(currentCubes);
+
+        // Creates array of all non-black tiles (tiles are the faces of the sub-cubes)
+        const tiles = cubes
+            .map((cube) => cube.children.slice(1))
+            .flat() // converts from array of face arrays to a flattened array of tiles
+            .filter(
+                (tile) =>
+                    tile.material.color.r +
+                        tile.material.color.b +
+                        tile.material.color.g >
+                    0
+            ); // tile color is not black
+
+        // Groups the tiles into cube faces
+        const front = groupFaces(tiles, "z", false);
+        const right = groupFaces(tiles, "x", false);
+        const up = groupFaces(tiles, "y", false);
+        const down = groupFaces(tiles, "y", true);
+        const left = groupFaces(tiles, "x", true);
+        const back = groupFaces(tiles, "z", true);
+
+        // Converts faces into sorted String representing current cube state
+        let cubeState = [
+            faceToSortedString(front, "x", -1.1, "y", 1.1),
+            faceToSortedString(right, "z", 1.1, "y", 1.1),
+            faceToSortedString(up, "x", -1.1, "z", -1.1),
+            faceToSortedString(down, "x", -1.1, "z", 1.1),
+            faceToSortedString(left, "z", -1.1, "y", 1.1),
+            faceToSortedString(back, "x", 1.1, "y", 1.1),
+        ].join("");
+
+        // console.log([
+        //     faceToSortedString(front, "x", -1.1, "y", 1.1),
+        //     faceToSortedString(right, "z", 1.1, "y", 1.1),
+        //     faceToSortedString(up, "x", -1.1, "z", -1.1),
+        //     faceToSortedString(down, "x", -1.1, "z", 1.1),
+        //     faceToSortedString(left, "z", -1.1, "y", 1.1),
+        //     faceToSortedString(back, "x", 1.1, "y", 1.1),
+        // ]);
+
+        let solveMoves = solver(cubeState); // takes current state and returns moves needed to solve cube
+        let moveArray = solveMoves.split(" ");
+        // converts output of solver into usable commands
+        moveArray = moveArray
+            .map((move) => {
+                if (move.includes("prime")) {
+                    return move[0].toUpperCase();
+                } else if (move.includes("2")) {
+                    return [move[0].toLowerCase(), move[0].toLowerCase()];
+                } else {
+                    return move.toLowerCase();
+                }
+            })
+            .flat();
+
+        console.log(moveArray);
+
+        let index = 0;
+        const interval = setInterval(() => {
+            if (index >= moveArray.length) {
+                clearInterval(interval);
+            }
+            else {
+                processRotateEvent(moveArray[index], cubes, fullCubeGroup);
+                index += 1;
+            }
+        }, 2000)
+
+        // moveArray.forEach((key) => processRotateEvent(key, cubes, fullCubeGroup));
+    };
+
+    // called from: Solve cube
+    // Takes the array of all tiles, a string axis (x, y, or z), and a boolean representing polarity(+/-)
+    // Returns array of tiles on a face (furthest out tiles in given direction)
+    const groupFaces = (tiles, axis, positive) => {
+        const offset = positive ? 1.61 : -1.61;
+
+        const array = tiles.filter((tile) => {
+            let cords = new THREE.Vector3(0, 0, 0);
+            tile.getWorldPosition(cords);
+            if (Math.abs(cords[axis] + offset) < 0.1) {
+                return tile;
+            }
+        });
+
+        return array;
+    };
+
+    // called from: Solve cube
+    // Takes a face's tile array, row axis, x coordinate of first tile, column axis, y coordinate of first tile
+    // Returns string reflecting the current state of the given face
+    const faceToSortedString = (face, rowAxis, rowStart, colAxis, colStart) => {
+        // example case: front, (front, x, -1.1, y, 1.1)
+        let sortedString = "";
+
+        for (let col = 0; col < 3; col++) {
+            for (let row = 0; row < 3; row++) {
+                const tile = face.find((tile) =>
+                    tileFilter(
+                        tile,
+                        rowAxis,
+                        colAxis,
+                        rowStart - rowStart * row,
+                        colStart - colStart * col
+                    )
+                );
+
+                sortedString += getColorValue(tile.material.color);
+            }
+        }
+
+        return sortedString;
+    };
+
+    // called from: faceToSortedString
+    // Takes a tile (Mesh), row axis, column axis, row axis coordinate, column axis coordinate
+    // Returns boolean of if the tile has those coordinates
+    const tileFilter = (tile, rowAxis, colAxis, rowPos, colPos) => {
+        let cords = new THREE.Vector3(0, 0, 0);
+        tile.getWorldPosition(cords);
+        if (Math.abs(cords[rowAxis] - rowPos) < 0.1) {
+            if (Math.abs(cords[colAxis] - colPos) < 0.1) {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    };
+
+    // called from: faceToSortedString
+    // takes mesh color values (r, g, b)
+    // returns single character string representing color's original face
+    const getColorValue = (tileColor) => {
+        // Currently testing for what values ranges each color shows
+        // in order to check this or make it cleaner (like maybe using a switch statement)
+        const colorValueMap = {
+            white: { r: 1, g: 1, b: 1 },
+            blue: { r: 0, g: 0.27058823529411763, b: 0.6784313725490196 },
+            orange: { r: 1, g: 0.34901960784313724, b: 0 },
+            red: { r: 0.7254901960784313, g: 0, b: 0 },
+            green: { r: 0, g: 0.6078431372549019, b: 0.2823529411764706 },
+            yellow: { r: 1, g: 0.8352941176470589, b: 0 },
+        };
+
+        if (tileColor.r === 1) {
+            if (tileColor.g > 0.5) {
+                if (tileColor.b === 1) {
+                    return "f"; // white
+                } else {
+                    return "b"; // yellow
+                }
+            } else {
+                return "u"; // orange
+            }
+        } else if (tileColor.r === 0) {
+            if (tileColor.b > 0.5) {
+                return "r"; // blue
+            } else {
+                return "l"; // green
+            }
+        } else {
+            return "d"; // red
+        }
+    };
 
     return <div className="canvasWrapper" ref={mount} />;
 }
