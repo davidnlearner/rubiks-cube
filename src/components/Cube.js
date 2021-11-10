@@ -170,7 +170,7 @@ function Cube() {
 
     useEffect(() => {
         const solveEventListener = (e) => {
-            if (e.key.toLowerCase() === "s") {
+            if (e.key.toLowerCase() === "q") {
                 solveCube(cubes);
             }
         };
@@ -178,7 +178,7 @@ function Cube() {
         const rotateEventListener = (e) => {
             console.log(rotating.current);
             if (rotating.current === false) {
-                processRotateEvent(e.key, cubes, fullCubeGroup);
+                processRotateEvent(e.key, cubes, fullCubeGroup, 20);
             }
         };
 
@@ -198,7 +198,7 @@ function Cube() {
         rotateGroup.rotation[axis] += rotationSpeed;
     };
 
-    const rotateEvent = (directions, cubes, fullCubeGroup) => {
+    const rotateEvent = (directions, cubes, fullCubeGroup, intervalLength) => {
         rotating.current = true;
 
         const rotateGroup = new THREE.Group();
@@ -207,11 +207,7 @@ function Cube() {
         cubes.forEach((cube) => {
             let target = new THREE.Vector3(0, 0, 0);
             cube.getWorldPosition(target);
-            if (
-                Math.abs(
-                    target[directions.posAxis] - directions.level
-                ) < 0.1
-            ) {
+            if (Math.abs(target[directions.posAxis] - directions.level) < 0.1) {
                 rotateGroup.add(cube);
             }
         });
@@ -223,31 +219,29 @@ function Cube() {
 
         const interval = setInterval(() => {
             if (
-                (rotateGroup.rotation[axis] < threshold && sign > 0)
-                ||
+                (rotateGroup.rotation[axis] < threshold && sign > 0) ||
                 (rotateGroup.rotation[axis] > threshold && sign < 0)
             ) {
                 rotate(clockwise, rotateGroup, axis);
-            }
-            else {
+            } else {
                 rotating.current = false;
 
                 rotateGroup.rotation[axis] = threshold;
                 const groupChildren = [...rotateGroup.children];
-                
+
                 groupChildren.forEach((cube) => {
                     fullCubeGroup.attach(cube);
                 });
-        
+
                 rotateGroup.rotation[axis] = 0;
                 fullScene.remove(rotateGroup);
 
                 clearInterval(interval);
             }
-        }, 20);
+        }, intervalLength);
     };
 
-    const processRotateEvent = (key, cubes, fullCubeGroup) => {
+    const processRotateEvent = (key, cubes, fullCubeGroup, intervalLength) => {
         let clockwise = /[A-Z]/.test(key);
         key = key.toLowerCase();
 
@@ -261,7 +255,8 @@ function Cube() {
                     clockwise,
                 },
                 cubes,
-                fullCubeGroup
+                fullCubeGroup,
+                intervalLength
             );
         } else if (key === "u") {
             // top counter-clockwise
@@ -273,7 +268,8 @@ function Cube() {
                     clockwise,
                 },
                 cubes,
-                fullCubeGroup
+                fullCubeGroup,
+                intervalLength
             );
         } else if (key === "r") {
             //right counter-clockwise
@@ -285,7 +281,8 @@ function Cube() {
                     clockwise,
                 },
                 cubes,
-                fullCubeGroup
+                fullCubeGroup,
+                intervalLength
             );
         } else if (key === "d") {
             // down clockwise
@@ -298,7 +295,8 @@ function Cube() {
                     clockwise,
                 },
                 cubes,
-                fullCubeGroup
+                fullCubeGroup,
+                intervalLength
             );
         } else if (key === "l") {
             // left clockwise
@@ -311,7 +309,8 @@ function Cube() {
                     clockwise,
                 },
                 cubes,
-                fullCubeGroup
+                fullCubeGroup,
+                intervalLength
             );
         } else if (key === "b") {
             // back clockwise
@@ -324,10 +323,55 @@ function Cube() {
                     clockwise,
                 },
                 cubes,
-                fullCubeGroup
+                fullCubeGroup,
+                intervalLength
+            );
+        } else if (key === "e") {
+            // middle clockwise (z plane middle)
+            // front and back
+            // rotation aligned to front
+            rotateEvent(
+                {
+                    level: 0,
+                    posAxis: "z",
+                    rotationalAxis: "z",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup,
+                intervalLength
+            );
+        } else if (key === "m") {
+            // middle clockwise  (x plane middle)
+            // left and right
+            // rotation aligned to right
+            rotateEvent(
+                {
+                    level: 0,
+                    posAxis: "x",
+                    rotationalAxis: "x",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup,
+                intervalLength
+            );
+        } else if (key === "s") {
+            // middle clockwise  (y plane middle)
+            // up and down
+            // rotation aligned to up
+            rotateEvent(
+                {
+                    level: 0,
+                    posAxis: "y",
+                    rotationalAxis: "y",
+                    clockwise,
+                },
+                cubes,
+                fullCubeGroup,
+                intervalLength
             );
         }
-
     };
 
     const solveCube = (cubes) => {
@@ -364,29 +408,59 @@ function Cube() {
             faceToSortedString(back, "x", 1.1, "y", 1.1),
         ].join("");
 
-        // console.log([
-        //     faceToSortedString(front, "x", -1.1, "y", 1.1),
-        //     faceToSortedString(right, "z", 1.1, "y", 1.1),
-        //     faceToSortedString(up, "x", -1.1, "z", -1.1),
-        //     faceToSortedString(down, "x", -1.1, "z", 1.1),
-        //     faceToSortedString(left, "z", -1.1, "y", 1.1),
-        //     faceToSortedString(back, "x", 1.1, "y", 1.1),
-        // ]);
-
         let solveMoves = solver(cubeState); // takes current state and returns moves needed to solve cube
         let moveArray = solveMoves.split(" ");
         // converts output of solver into usable commands
-        moveArray = moveArray
-            .map((move) => {
-                if (move.includes("prime")) {
-                    return move[0].toUpperCase();
-                } else if (move.includes("2")) {
-                    return [move[0].toLowerCase(), move[0].toLowerCase()];
-                } else {
-                    return move.toLowerCase();
-                }
-            })
-            .flat();
+        const middleMoves = {
+            f: "e",
+            b: "E",
+            r: "m",
+            l: "M",
+            u: "s",
+            d: "S",
+            F: "E",
+            B: "e",
+            R: "M",
+            L: "m",
+            U: "S",
+            D: "s",
+        };
+
+        if (moveArray[0] !== "") {
+            moveArray = moveArray
+                .map((move) => {
+                    if (move.includes("prime")) {
+                        if (move[0] === move[0].toLowerCase()) {
+                            return [
+                                move[0].toUpperCase(),
+                                middleMoves[move[0].toUpperCase()],
+                            ];
+                        } else {
+                            return move[0].toUpperCase();
+                        }
+                    } else if (move.includes("2")) {
+                        if (move[0] === move[0].toLowerCase()) {
+                            const middleMove = middleMoves[move[0]];
+                            return [move[0], move[0], middleMove, middleMove];
+                        } else {
+                            return [
+                                move[0].toLowerCase(),
+                                move[0].toLowerCase(),
+                            ];
+                        }
+                    } else {
+                        if (move[0] === move[0].toLowerCase()) {
+                            return [
+                                move[0].toLowerCase(),
+                                middleMoves[move[0].toLowerCase()],
+                            ];
+                        } else {
+                            return move.toLowerCase();
+                        }
+                    }
+                })
+                .flat();
+        }
 
         console.log(moveArray);
 
@@ -394,14 +468,11 @@ function Cube() {
         const interval = setInterval(() => {
             if (index >= moveArray.length) {
                 clearInterval(interval);
-            }
-            else {
-                processRotateEvent(moveArray[index], cubes, fullCubeGroup);
+            } else {
+                processRotateEvent(moveArray[index], cubes, fullCubeGroup, 5);
                 index += 1;
             }
-        }, 2000)
-
-        // moveArray.forEach((key) => processRotateEvent(key, cubes, fullCubeGroup));
+        }, 500);
     };
 
     // called from: Solve cube
