@@ -326,7 +326,7 @@ function Cube() {
                 fullCubeGroup,
                 intervalLength
             );
-        } else if (key === "e") {
+        } else if (key === "s") {
             // middle clockwise (z plane middle)
             // front and back
             // rotation aligned to front
@@ -345,6 +345,7 @@ function Cube() {
             // middle clockwise  (x plane middle)
             // left and right
             // rotation aligned to right
+            clockwise = !clockwise;
             rotateEvent(
                 {
                     level: 0,
@@ -356,10 +357,12 @@ function Cube() {
                 fullCubeGroup,
                 intervalLength
             );
-        } else if (key === "s") {
+        } else if (key === "e") {
             // middle clockwise  (y plane middle)
             // up and down
             // rotation aligned to up
+            clockwise = !clockwise;
+
             rotateEvent(
                 {
                     level: 0,
@@ -412,18 +415,18 @@ function Cube() {
         let moveArray = solveMoves.split(" ");
         // converts output of solver into usable commands
         const middleMoves = {
-            f: "e",
-            b: "E",
-            r: "m",
-            l: "M",
-            u: "s",
-            d: "S",
-            F: "E",
-            B: "e",
-            R: "M",
-            L: "m",
-            U: "S",
-            D: "s",
+            f: "s",
+            b: "S",
+            r: "M",
+            l: "m",
+            u: "E",
+            d: "e",
+            F: "S",
+            B: "s",
+            R: "m",
+            L: "M",
+            U: "e",
+            D: "E",
         };
 
         if (moveArray[0] !== "") {
