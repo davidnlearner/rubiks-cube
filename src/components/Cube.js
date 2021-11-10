@@ -472,10 +472,10 @@ function Cube() {
             if (index >= moveArray.length) {
                 clearInterval(interval);
             } else {
-                processRotateEvent(moveArray[index], cubes, fullCubeGroup, 5);
+                processRotateEvent(moveArray[index], cubes, fullCubeGroup, 4);
                 index += 1;
             }
-        }, 500);
+        }, 450);
     };
 
     // called from: Solve cube
